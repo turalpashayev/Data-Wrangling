@@ -1,0 +1,38 @@
+#importing libraries to pull data from API
+import requests
+import browsercookie
+cj = browsercookie.load()
+r = requests.get('https://yourwebsite', cookies=cj)
+
+url_list = {
+            "Production": "https://yourwebsite/dataservice/v1/overlays/?status=Production",
+            "POC": "https://yourwebsitedataservice/v1/overlays/?status=POC",
+            "Demo": "https://yourwebsite/dataservice/v1/overlays/?status=Demo",
+            "Pilot": "https://yourwebsite/dataservice/v1/overlays/?status=Pilot",
+            "Lab": "https://yourwebsite/dataservice/v1/overlays/?status=Lab",
+            "TNB": "https://yourwebsite/dataservice/v1/overlays/?status=TNB"
+            }
+
+cookies = {
+    "csrftoken": "yourcookiestring"
+         }
+#importing posgres libraries to make a connection
+import psycopg2
+dbSession = psycopg2.connect("dbname='dbname' user='postgres' password='pwrd'")
+dbCursor = dbSession.cursor()
+sqlSelect = "select status, count(*) from overlay where vDash group by status"
+dbCursor.execute(sqlSelect)
+rows = dbCursor.fetchall()
+dic_sql = dict((x, y) for x, y in rows)
+
+#Main part of the code checks connection and compares data in DB and API if it's the same
+for i in url_list:
+    response = requests.request("GET", url_list[i], cookies=cookies)
+    if response.status_code == 200:
+        #print(i,"- connection is successful")
+        print(i,'|vDash' ,response.json()['count'], '|pgDB', dic_sql[i], '|Diff =', response.json()['count'] - dic_sql[i])
+
+    else:
+        print(i,"- connection is not successful")
+
+#print(response.json()['count'])
