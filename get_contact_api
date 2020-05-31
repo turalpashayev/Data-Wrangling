@@ -1,0 +1,40 @@
+#importing libraries for pulling data from API
+import requests
+#importing libraries for fetching data from Posgres and inserting data pulled from API
+import psycopg2
+from datetime import datetime
+#Counter varibale used to calculate how many lines have been inserted to a Database
+counter = 0
+dbSession = psycopg2.connect("dbname='postgres' user='username' password='pswrd'")
+
+dbCursor = dbSession.cursor()
+sqlSelect = "select distinct(smart_account_id) from swsc_sd_wan_device_info"
+dbCursor.execute(sqlSelect)
+smart_account = dbCursor.fetchall()
+
+#printsmart_account[0][1]
+
+url_list = 'yourapilink/278928'
+
+cookies = {
+           'Casda': 'yourcookiestring'
+           }
+#this line of the code gets data from API and insert's that line to a Postgres database
+for i in smart_account:
+    response = requests.request("GET", url_list + str(i[0]), cookies=cookies)
+    sqlInsertRow1 = "INSERT INTO pnp_contact_det values ({0},{1},'{2}',{3},{4},'{5}','{6}')".format(
+    i[0],
+    int(response.json()['data']['account_parties'][0]['party_number']),
+    response.json()['data']['account_parties'][0]['party_name'].replace("'",""),
+    "'" + response.json()['data']['created_by']['first_name'].replace("'","") + "'" if response.json()['data']['created_by']['first_name'] else 'NULL',
+    "'" + response.json()['data']['created_by']['last_name'].replace("'","") + "'" if response.json()['data']['created_by']['last_name'] else 'NULL',
+    response.json()['data']['created_by']['email'],
+    datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+    )
+    counter = counter + 1
+    #Used to see output of inserted rows and to check log files if there is any error
+    print(str(counter) + ' ' + sqlInsertRow1)
+    dbCursor.execute(sqlInsertRow1)
+
+dbSession.commit()
+
